@@ -1,21 +1,87 @@
+## This module implements conveniences for dealing with the ``Option`` type in
+## Nim. It is based on
+## `superfuncs maybe library<https://github.com/superfunc/maybe>`_ and
+## `Toccatas novel boolean approach<www.toccata.io/2017/10/No-Booleans.html>`_
+## but also implements features found elsewhere.
+##
+## The goal of this library is to make options in Nim easier and safer to work
+## with by creating good patterns for option handling.
+##
+##
+## Usage
+## =====
+##
+## Let's start with the example from the ``options`` module:
+##
+## .. code-block:: nim
+##   import options
+##
+##   proc find(haystack: string, needle: char): Option[int] =
+##     for i, c in haystack:
+##       if c == needle:
+##         return some(i)
+##     return none(int)  # This line is actually optional,
+##                       # because the default is empty
+##
+## .. code-block:: nim
+##   let found = "abc".find('c')
+##   assert found.isSome and found.get() == 2
+##
+## This is probably a familiar pattern, we get an option value, check if it is
+## a "some" value, and then extract the actual value. But this is verbose and
+## error prone. What if we refactor the code and drop the isSome check, now
+## we're in a scenario where ``found.get()`` will throw an exception if we're
+## not careful. This module offers a couple of alternatives:
+##
+## .. code-block:: nim
+##   withSome found:
+##     some value: echo value
+##     none: discard
+##
+##   found?.echo
+##
+##   echo either(found, 0)
+##
+## The first way, using ``withSome`` offers a safe unpacking pattern. You pass
+## it an option, or a list of options, and give it branches
+##
 import options, macros
+
+type ExistentialOption[T] = distinct Option[T]
+
+converter toBool*(option: ExistentialOption[bool]): bool =
+  Option[bool](option).isSome and Option[bool](option).unsafeGet
+
+converter toOption*[T](option: ExistentialOption[T]): Option[T] =
+  Option[T](option)
+
+proc toExistentialOption*[T](option: Option[T]): ExistentialOption[T] =
+  ExistentialOption[T](option)
 
 macro `?.`*(option: untyped, statements: untyped): untyped =
   ## Existential operator. Works like regular dot-chaining, but if
   ## the left had side is a ``none`` then the right hand side is not evaluated.
   ## In the case that ``statements`` return something the return type of this
-  ## will be ``Option[T]`` where ``T`` is the returned type of ``statements``.
-  ## If nothing is returned from ``statements`` this returns nothing.
+  ## will be ``ExistentialOption[T]`` where ``T`` is the returned type of
+  ## ``statements``. If nothing is returned from ``statements`` this returns
+  ## nothing. The ``ExistentialOption[T]`` auto-converts to an ``Option[T]``
+  ## and the only difference between the two is that a
+  ## ``ExistentialOption[bool]`` will also auto-convert to a ``bool`` to allow
+  ## it to be used in if statements.
   ##
   ## .. code-block:: nim
   ##   echo some("Hello")?.find('l') ## Prints out Some(2)
   ##   some("Hello")?.find('l').echo # Prints out 2
   ##   none(string)?.find('l').echo # Doesn't print out anything
   ##   echo none(string)?.find('l') # Prints out None[int] (return type of find)
-  ##   # These also work in things like ifs
-  ##   if some("Hello")?.find('l') == 2:
+  ##   # These also work in things like ifs as long as operator precedence is
+  ##   # controlled properly:
+  ##   if some("Hello")?.find('l').`==` 2:
   ##     echo "This prints"
-  ##   if none(string)?.find('l') == 2:
+  ##   proc equalsTwo(x: int): bool = x == 2
+  ##   if some("Hello")?.find('l').equalsTwo:
+  ##     echo "This also prints"
+  ##   if none(string)?.find('l').`==` 2:
   ##     echo "This doesn't"
   let opt = genSym(nskLet)
   var
@@ -39,7 +105,7 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
         when compiles(`injected`) and not compiles(some(`injected`)):
           `injected`
         else:
-          return some(`injected`)
+          return toExistentialOption(some(`injected`))
     )()
 
 macro withSome*(options: untyped, body: untyped): untyped =
@@ -129,7 +195,7 @@ macro withSome*(options: untyped, body: untyped): untyped =
                 error "List must only contain identifiers", i
           elif options.kind == nnkBracket:
             if $optionCase[1] != "_":
-              error "When multiple options is passed all identifiers must be " &
+              error "When multiple options are passed all identifiers must be " &
                 "supplied", optionCase[1]
           idents = if optionCase[1].kind == nnkBracket: optionCase[1] else: newStmtList(optionCase[1])
           someCase = optionCase[2]
@@ -158,10 +224,13 @@ macro withSome*(options: untyped, body: untyped): untyped =
         `body`
       else:
         `noneCase`
-  result = quote do:
-    (proc (): auto =
-      `body`
-    )()
+  result = body
+  # This doesn't work if `body` includes any reference to result..
+  # It was probably done this way for a reason though
+  #result = quote do:
+  #  (proc (): auto =
+  #    `body`
+  #  )()
 
 template either*(self, otherwise: untyped): untyped =
   ## Similar in function to ``get``, but if ``otherwise`` is a procedure it will
@@ -217,9 +286,11 @@ macro wrapException*(statement: untyped): untyped =
   ## returns a some option with the exception.
   ##
   ## .. code-block:: nim
+  ##   # This might be a silly example, it's more useful for things that
+  ##   # doesn't return anything
   ##   let optParseInt = wrapException: parseInt(x: string)
   ##   withSome optParseInt("bob"):
-  ##     just e: echo e.msg
+  ##     some e: echo e.msg # Prints the exception message
   ##     none: echo "Execution succeded"
   assert(statement.len == 1)
   assert(statement[0].kind == nnkObjConstr)
@@ -256,7 +327,7 @@ macro wrapErrorCode*(statement: untyped): untyped =
   ##   # We cheat a bit here and use parseInt to emulate an error code
   ##   let optParseInt = wrapErrorCode: parseInt(x: string)
   ##   withSome optParseInt("10"):
-  ##     just e: echo "Got error code: ", e
+  ##     some e: echo "Got error code: ", e
   ##     none: echo "Execution succeded"
   assert(statement.len == 1)
   assert(statement[0].kind == nnkObjConstr)
@@ -281,3 +352,63 @@ macro wrapErrorCode*(statement: untyped): untyped =
     result[0][3].add nnkIdentDefs.newTree(statement[0][i][0], statement[0][i][1], newEmptyNode())
     result[0][6][0][0][2].add statement[0][i][0]
 
+proc toOpt*[T](value: Option[T]): Option[T] =
+  ## Procedure with overload to automatically convert something to an option if
+  ## it's not already an option.
+  value
+
+proc toOpt*[T](value: T): Option[T] =
+  ## Procedure with overload to automatically convert something to an option if
+  ## it's not already an option.
+  some(value)
+
+macro optAnd*(options: varargs[untyped]): untyped =
+  ## Goes through all options until one of them is not a some. If one of the
+  ## options is not a some it returns a none, otherwise it returns the last
+  ## option. Note that if some of the options are a procedure that returns an
+  ## Option they won't get evaluated if an earlier option is a none. If any of
+  ## the options is not an option but another type they will be converted to an
+  ## option of that type automatically.
+  var
+    body = newStmtList()
+    lastOpt: NimNode
+  for option in options:
+    lastOpt = genSym(nskLet)
+    body.add quote do:
+      let `lastOpt` = toOpt(`option`)
+      if not `lastOpt`.isSome: return
+  body.add quote do:
+    return `lastOpt`
+
+  result = quote do:
+    (proc (): auto = `body`)()
+
+macro optOr*(options: varargs[untyped]): untyped =
+  ## Goes through the options until one of them is a some. If none of the
+  ## options are a some a none is returned. Note that if some of the options are
+  ## a procedure that returns an Option they won't get evaluated if an earlier
+  ## option is a some. If any of the options is not an option but another type
+  ## they will be converted to an option of that type automatically.
+  var body = newStmtList()
+  for option in options:
+    body.add quote do:
+      let opt = toOpt(`option`)
+      if opt.isSome: return opt
+
+  result = quote do:
+    (proc (): auto = `body`)()
+
+template optCmp*(cmp, self, value: untyped): untyped =
+  ## Comparator for options. ``cmp`` must be something that accepts two
+  ## parameters, ``self`` and ``value`` can either be ``Option[T]`` or ``T``.
+  ## Will return ``self`` if it is an ``Option[T]`` or ``self`` converted to
+  ## an ``Option[T]`` if both ``self`` and ``value`` is a some and ``cmp``
+  ## returns true when called with their values.
+  (proc (): auto =
+    let
+      a = toOpt(self)
+      b = toOpt(value)
+    if a.isSome and b.isSome:
+      if `cmp`(a.unsafeGet, b.unsafeGet):
+        return a
+  )()
