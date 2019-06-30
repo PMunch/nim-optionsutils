@@ -43,8 +43,86 @@
 ##   echo either(found, 0)
 ##
 ## The first way, using ``withSome`` offers a safe unpacking pattern. You pass
-## it an option, or a list of options, and give it branches
+## it an option, or a list of options, and give it branches to evaluate when
+## either all of the options are some, or any of them is a none. The benefit of
+## this pattern is that the options values are unpacked into variables
+## automatically in the applicable branch. This means that you can't mess up a
+## refactoring and move something from the some branch into the none branch.
+## And as long as care is taken to stay away from ``options.get`` and
+## ``options.unsafeGet`` this will ensure you can't have exception cases.
 ##
+## The second option is the existential operator, or optional chaining
+## operator. This operator can be put where regular dot-chaining would apply
+## and will only continue execution if the left-hand side is a some. In this
+## example ``echo`` will only be called when ``found`` is a some, and won't
+## return anything. However this also works when the right hand side might
+## return something, in this case it will be wrapped in an ``Option[T]`` that
+## will be a none if the left-hand side is a none.
+##
+## And last but not least, a simple ``either`` template. This takes an option
+## and a default value, but where the regular ``options.get`` with an
+## ``otherwise`` argument the default value may be a procedure that returns a
+## value. This procedure will only be called if the value is a none, making
+## sure that no side-effects from the procedure will happen unless it's
+## necessary.
+##
+## This module also includes the convenient ``optCmp`` template allowing you to
+## easily compare the values of two options in an option aware manner.
+## So instead of having to wrap your options in one of the patterns above you
+## can alse use ``optCmp`` to compare options directly:
+##
+## .. code-block:: nim
+##   let compared = some(5).optCmp(`<`, some(10))
+##
+## Note however that this does not return a boolean, it returns the first value
+## of the comparisson. So the above code will return a some option with the
+## value 5. This means you can use them to filter values for example. And of
+## course if either part of the comparisson is a none, then the result will be
+## a none as well.
+##
+## Besides this we also have ``optAnd`` and ``optOr``, these don't work on the
+## value of the option, but rather on the has-ity of the option. So ``optOr``
+## will return the first some option, or a none option. And ``optAnd`` will
+## return the first none option, or the last option. This can be used to
+## replace boolean expressions.
+##
+## .. code-block:: Nim
+##   let x = "green"
+##   # This will print out "5"
+##   echo either(optAnd(optCmp(x, `==`, "green"), 5), 3)
+##   # This will print out "3"
+##   echo either(optAnd(optCmp("blue", `==`, "green"), 5), 3)
+##
+## In the first example ``optAnd`` runs it's first expression, ``optCmp`` which
+## returns an option with the value "green", since it has a value ``optAnd``
+## runs the second expression ``5`` which is automatically converted to
+## ``some(5)``. Since both of these have a value ``optAnd`` returns the last one
+## ``some(5)``, the ``either`` procedure is just an alias for ``get`` with a
+## default value, since it's first argument has a value it returns that value.
+##
+## In the second example ``optAnd`` runs it's first expression, ``optCmp`` which
+## return an option without a value since the comparisson fails. ``optAnd`` then
+## returns an option without a value, and the ``either`` procedure uses the
+## default value of 3.
+##
+## This example is the same as a ``if x == "green": 5 else: 3`` but where x
+## might not be set at all.
+##
+## And last but not least, in case you have a library that doesn't use options
+## there are wrapper procedures that wrap exceptions and error codes in option
+## returns. This is to work well with the logic operations in this module.
+##
+## .. code-block:: nim
+##   let optParseInt = wrapCall: parseInt(x: string): int
+##   echo optParseInt("10") # Prints "some(10)"
+##   echo optParseInt("bob") # Prints "None[int]"
+##   echo either(optParseInt("bob"), 10) # Prints 10, like a default value
+##   withSome optOr(optParseInt("bob"), 10):
+##     some value:
+##       echo 10 # Prints 10, like a default value, but in a safe access pattern
+##     none:
+##       echo "No value"
+
 import options, macros
 
 type ExistentialOption[T] = distinct Option[T]
@@ -181,6 +259,10 @@ macro withSome*(options: untyped, body: untyped): untyped =
             optionCase[0]
         else:
           error "Only \"some\" is allowed to have arguments", optionCase[0]
+      elif someCase != nil:
+        error "Only one \"some\" case is allowed, " &
+          "previously defined \"some\" case at: " & lineInfo(someCase),
+          optionCase[0]
       else:
         if optionCase[1].kind != nnkBracket and optionCase[1].kind != nnkIdent:
           error "Must have either a list or a single identifier as arguments",
@@ -398,7 +480,7 @@ macro optOr*(options: varargs[untyped]): untyped =
   result = quote do:
     (proc (): auto = `body`)()
 
-template optCmp*(cmp, self, value: untyped): untyped =
+template optCmp*(self, cmp, value: untyped): untyped =
   ## Comparator for options. ``cmp`` must be something that accepts two
   ## parameters, ``self`` and ``value`` can either be ``Option[T]`` or ``T``.
   ## Will return ``self`` if it is an ``Option[T]`` or ``self`` converted to

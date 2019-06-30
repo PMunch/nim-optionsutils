@@ -228,8 +228,8 @@ suite "optionsutils":
     reset evaluated
 
   test "optCmp":
-    check `==`.optCmp(some("hello"), some("world")) == none(string)
-    check `!=`.optCmp(some("hello"), some("world")) == some("hello")
-    check `!=`.optCmp(some("hello"), "world") == some("hello")
-    check `!=`.optCmp("hello", some("world")) == some("hello")
-    check `!=`.optCmp("hello", "world") == some("hello")
+    check some("hello").optCmp(`==`, some("world")) == none(string)
+    check some("hello").optCmp(`!=`, some("world")) == some("hello")
+    check some("hello").optCmp(`!=`, "world") == some("hello")
+    check "hello".optCmp(`!=`, some("world")) == some("hello")
+    check "hello".optCmp(`!=`, "world") == some("hello")
