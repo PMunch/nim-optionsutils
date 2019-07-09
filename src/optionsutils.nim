@@ -169,12 +169,12 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
     while true:
       if firstBarren[0].len == 0:
         firstBarren[0] = nnkDotExpr.newTree(
-          nnkDotExpr.newTree(opt, newIdentNode("unsafeGet")), firstBarren[0])
+          newCall(bindSym("unsafeGet"), opt), firstBarren[0])
         break
       firstBarren = firstBarren[0]
   else:
     injected = nnkDotExpr.newTree(
-      nnkDotExpr.newTree(opt, newIdentNode("unsafeGet")), firstBarren)
+      newCall(bindSym("unsafeGet"), opt), firstBarren)
 
   result = quote do:
     (proc (): auto {.inline.} =
@@ -288,7 +288,9 @@ macro withSome*(options: untyped, body: untyped): untyped =
   if someCase == nil:
     error "Must have a \"some\" case"
   var body = someCase
-  let optionsList = (if options.kind == nnkBracket: options else: newStmtList(options))
+  let
+    optionsList = (if options.kind == nnkBracket: options else: newStmtList(options))
+    ug = bindSym"unsafeGet"
   for i in countdown(optionsList.len - 1, 0):
     let
       option = optionsList[i]
@@ -296,7 +298,7 @@ macro withSome*(options: untyped, body: untyped): untyped =
       ident = if idents.len <= i: newLit("_") else: idents[i]
       assign = if $ident != "_":
         quote do:
-          let `ident` = `tmpLet`.unsafeGet
+          let `ident` = `ug`(`tmpLet`)
       else:
         newStmtList()
     body = quote do:
@@ -319,7 +321,7 @@ template either*(self, otherwise: untyped): untyped =
   ## not be evaluated if ``self`` is a ``some``. This means that ``otherwise``
   ## can have side effects.
   let opt = self # In case self is a procedure call returning an option
-  if opt.isSome: opt.unsafeGet else: otherwise
+  if opt.isSome: unsafeGet(opt) else: otherwise
 
 macro wrapCall*(statement: untyped): untyped =
   ## Macro that wraps a procedure which can throw an exception into one that
@@ -491,6 +493,6 @@ template optCmp*(self, cmp, value: untyped): untyped =
       a = toOpt(self)
       b = toOpt(value)
     if a.isSome and b.isSome:
-      if `cmp`(a.unsafeGet, b.unsafeGet):
+      if `cmp`(unsafeGet(a), unsafeGet(b)):
         return a
   )()
