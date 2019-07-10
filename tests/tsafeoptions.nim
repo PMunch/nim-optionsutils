@@ -53,11 +53,11 @@ suite "safety":
     check optOr(some("hello"), some("world")) == some("hello")
     check optOr(none(int), some(100)) == some(100)
 
-    check `==`.optCmp(some("hello"), some("world")) == none(string)
-    check `!=`.optCmp(some("hello"), some("world")) == some("hello")
-    check `!=`.optCmp(some("hello"), "world") == some("hello")
-    check `!=`.optCmp("hello", some("world")) == some("hello")
-    check `!=`.optCmp("hello", "world") == some("hello")
+    check optCmp(some("hello"), `==`, some("world")) == none(string)
+    check optCmp(some("hello"), `!=`, some("world")) == some("hello")
+    check optCmp(some("hello"), `!=`, "world") == some("hello")
+    check optCmp("hello", `!=`, some("world")) == some("hello")
+    check optCmp("hello", `!=`, "world") == some("hello")
 
   test "unable to use unsafe pattern":
     when(compiles do:
@@ -94,7 +94,7 @@ suite "original options":
         if c == needle:
           return some i
 
-    check(`==`.optCmp("abc".find('c'), 2) == some(2))
+    check(optCmp("abc".find('c'), `==`, 2) == some(2))
 
     let result = "team".find('i')
 
