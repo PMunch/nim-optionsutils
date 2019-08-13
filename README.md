@@ -3,7 +3,7 @@ optionsutils
 
 This module implements conveniences for dealing with the `Option` type in
 Nim. It is based on
-[superfuncs maybe library](https://github.com/superfunc/maybe>) and
+[superfuncs maybe library](https://github.com/superfunc/maybe) and
 [Toccatas novel boolean approach](www.toccata.io/2017/10/No-Booleans.html)
 but also implements features found elsewhere.
 
@@ -15,4 +15,5 @@ functionality of the `options` and `optionsutils` modules, but will leave out
 `get` and `unsafeGet` so that only the safe patterns from `optionsutils` will
 be available for use.
 
-To see what `optionsutils` offers, see the documentation.
+To see what `optionsutils` offers, see the
+[documentation](https://nimble.directory/docs/optionsutils//optionsutils.html).
