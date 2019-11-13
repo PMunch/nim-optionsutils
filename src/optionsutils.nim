@@ -141,11 +141,11 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
   ## the left had side is a ``none`` then the right hand side is not evaluated.
   ## In the case that ``statements`` return something the return type of this
   ## will be ``ExistentialOption[T]`` where ``T`` is the returned type of
-  ## ``statements``. If nothing is returned from ``statements`` this returns
-  ## nothing. The ``ExistentialOption[T]`` auto-converts to an ``Option[T]``
-  ## and the only difference between the two is that a
-  ## ``ExistentialOption[bool]`` will also auto-convert to a ``bool`` to allow
-  ## it to be used in if statements.
+  ## ``statements`` or if statements return ``Option[T]`` it will be ``T``. If
+  ## nothing is returned from ``statements`` this returns nothing. The
+  ## ``ExistentialOption[T]`` auto-converts to an ``Option[T]`` and the only
+  ## difference between the two is that a ``ExistentialOption[bool]`` will also
+  ## auto-convert to a ``bool`` to allow it to be used in if statements.
   ##
   ## .. code-block:: nim
   ##   echo some("Hello")?.find('l') ## Prints out Some(2)
@@ -183,7 +183,7 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
         when compiles(`injected`) and not compiles(some(`injected`)):
           `injected`
         else:
-          return toExistentialOption(some(`injected`))
+          return toExistentialOption(toOpt(`injected`))
     )()
 
 macro withSome*(options: untyped, body: untyped): untyped =
