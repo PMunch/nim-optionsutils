@@ -283,11 +283,11 @@ macro withSome*(options: untyped, body: untyped): untyped =
           someCase = optionCase[2]
     else:
       error "Unrecognized structure of cases", optionCase
-  if noneCase == nil:
-    error "Must have a \"none\" case"
-  if someCase == nil:
-    error "Must have a \"some\" case"
-  var body = someCase
+  if noneCase == nil and someCase == nil:
+    error "Must have either a \"some\" case, a \"none\" case, or both"
+  var
+    body = if someCase != nil: someCase else: nnkDiscardStmt.newTree(newNilLit())
+    none = if noneCase != nil: noneCase else: nnkDiscardStmt.newTree(newNilLit())
   let
     optionsList = (if options.kind == nnkBracket: options else: newStmtList(options))
     ug = bindSym"unsafeGet"
@@ -307,7 +307,7 @@ macro withSome*(options: untyped, body: untyped): untyped =
         `assign`
         `body`
       else:
-        `noneCase`
+        `none`
   result = body
   # This doesn't work if `body` includes any reference to result..
   # It was probably done this way for a reason though

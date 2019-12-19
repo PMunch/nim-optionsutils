@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.0.0"
+version       = "1.1.0"
 author        = "PMunch"
 description   = "Utility macros for easier handling of options in Nim"
 license       = "MIT"

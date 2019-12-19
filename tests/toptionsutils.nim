@@ -233,3 +233,15 @@ suite "optionsutils":
     check some("hello").optCmp(`!=`, "world") == some("hello")
     check "hello".optCmp(`!=`, some("world")) == some("hello")
     check "hello".optCmp(`!=`, "world") == some("hello")
+
+  test "lacking some":
+    let x = some(100)
+    withSome x:
+      none:
+        check false
+
+  test "lacking none":
+    let x = some(100)
+    withSome x:
+      some y:
+        check y == 100
