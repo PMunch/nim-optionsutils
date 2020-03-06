@@ -165,9 +165,10 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
   var
     injected = statements
     firstBarren = statements
-  if firstBarren.len != 0:
+  if firstBarren.kind in {nnkCall, nnkDotExpr, nnkCommand}:
+    # This edits the tree that injected points to
     while true:
-      if firstBarren[0].len == 0:
+      if firstBarren[0].kind notin {nnkCall, nnkDotExpr, nnkCommand}:
         firstBarren[0] = nnkDotExpr.newTree(
           newCall(bindSym("unsafeGet"), opt), firstBarren[0])
         break
@@ -177,7 +178,7 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
       newCall(bindSym("unsafeGet"), opt), firstBarren)
 
   result = quote do:
-    (proc (): auto =
+    (proc (): auto {.inline.} =
       let `opt` = `option`
       if `opt`.isSome:
         when compiles(`injected`) and not compiles(some(`injected`)):

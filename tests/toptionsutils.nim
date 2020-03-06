@@ -66,6 +66,12 @@ suite "optionsutils":
     when compiles(if some(true): echo "Bug"):
       check false
 
+  test "existential operator with `$`":
+    let x = some(100)
+    check (x?.`$`) == some("100")
+    let y = none(int)
+    check (y?.`$`) == none(string)
+
   test "withSome":
     let x = some(100)
     withSome x:
