@@ -178,7 +178,7 @@ macro `?.`*(option: untyped, statements: untyped): untyped =
       newCall(bindSym("unsafeGet"), opt), firstBarren)
 
   result = quote do:
-    (proc (): auto {.inline.} =
+    (proc (): auto =
       let `opt` = `option`
       if `opt`.isSome:
         when compiles(`injected`) and not compiles(some(`injected`)):
