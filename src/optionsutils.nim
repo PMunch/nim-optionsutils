@@ -497,3 +497,37 @@ template optCmp*(self, cmp, value: untyped): untyped =
       if `cmp`(unsafeGet(a), unsafeGet(b)):
         return a
   )()
+
+import sequtils
+
+macro withSome*(body: untyped): untyped =
+  ##Early exit if the any of option parameters passed are none.
+  ##Also shadows the parameters to their internal type.
+  let 
+    identDefs = body[3] #All parameter names
+    stmtList = body.findChild(it.kind == nnkStmtList) #body
+  for def in identDefs:
+    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    if bracket != nil and $bracket[0] == "Option":
+      #Get all defined variables here so we can check them later
+      let idents = def.filterIt(it.kind == nnkIdent)
+      for varNode in idents:
+        stmtList.insert 0, quote do:
+          if `varNode`.isNone: return
+          let `varNode` = `varNode`.get
+  body
+
+macro withNone*(body: untyped): untyped =
+  ##Early exit if the any of option parameters passed are some.
+  let 
+    identDefs = body[3] #All parameter names
+    stmtList = body.findChild(it.kind == nnkStmtList) #body
+  for def in identDefs:
+    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    #Get all defined variables here so we can check them later
+    if bracket != nil and $bracket[0] == "Option":
+      let idents = def.filterIt(it.kind == nnkIdent)
+      for varNode in idents:
+        stmtList.insert 0, quote do:
+          if `varNode`.isSome: return
+  body
