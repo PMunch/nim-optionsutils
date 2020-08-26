@@ -504,7 +504,7 @@ macro withSome*(procDef: untyped): untyped =
   ##Early exit if the any of option parameters passed are none.
   ##Also shadows the parameters to their internal type.
   doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
-  let 
+  let
     identDefs = procDef[3] #All parameter names
     stmtList = procDef.body #body
   for def in identDefs:
@@ -522,7 +522,7 @@ macro withSome*(procDef: untyped): untyped =
 macro withNone*(procDef: untyped): untyped =
   ##Early exit if the any of option parameters passed are some.
   doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
-  let 
+  let
       identDefs = procDef[3] #All parameter names
       stmtList = procDef.body
   for def in identDefs:
