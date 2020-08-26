@@ -510,9 +510,10 @@ macro withSome*(procDef: untyped): untyped =
   for def in identDefs:
     let bracket = def.findChild(it.kind == nnkBracketExpr)
     if bracket != nil and $bracket[0] == "Option":
-      #Get all defined variables here so we can check them later
-      let idents = def.filterIt(it.kind == nnkIdent)
-      for varNode in idents:
+      var foundNonIdent = false #Used to remove redundant constant checks
+      for varNode in def:
+        foundNonIdent = varNode.kind != nnkIdent #First N idents are the declared variables in a `a,b,c: T`
+        if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
         stmtList.insert 0, quote do:
           if `varNode`.isNone: return
           let `varNode` = `varNode`.get
@@ -528,8 +529,10 @@ macro withNone*(procDef: untyped): untyped =
     let bracket = def.findChild(it.kind == nnkBracketExpr)
     #Get all defined variables here so we can check them later
     if bracket != nil and $bracket[0] == "Option":
-      let idents = def.filterIt(it.kind == nnkIdent)
-      for varNode in idents:
+      var foundNonIdent = false #Used to remove redundant constant checks
+      for varNode in def:
+        foundNonIdent = varNode.kind != nnkIdent #First N idents are the declared variables in a `a,b,c: T`
+        if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
         stmtList.insert 0, quote do:
           if `varNode`.isSome: return
   procDef
