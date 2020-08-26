@@ -497,3 +497,42 @@ template optCmp*(self, cmp, value: untyped): untyped =
       if `cmp`(unsafeGet(a), unsafeGet(b)):
         return a
   )()
+
+import sequtils
+
+macro withSome*(procDef: untyped): untyped =
+  ##Early exit if the any of option parameters passed are none.
+  ##Also shadows the parameters to their internal type.
+  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
+  let
+    identDefs = procDef[3] #All parameter names
+    stmtList = procDef.body #body
+  for def in identDefs:
+    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    if bracket != nil and $bracket[0] == "Option":
+      var foundNonIdent = false #Used to remove redundant constant checks
+      for varNode in def:
+        foundNonIdent = varNode.kind != nnkIdent #First N idents are the declared variables in a `a,b,c: T`
+        if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
+        stmtList.insert 0, quote do:
+          if `varNode`.isNone: return
+          let `varNode` = `varNode`.get
+  procDef
+
+macro withNone*(procDef: untyped): untyped =
+  ##Early exit if the any of option parameters passed are some.
+  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
+  let
+      identDefs = procDef[3] #All parameter names
+      stmtList = procDef.body
+  for def in identDefs:
+    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    #Get all defined variables here so we can check them later
+    if bracket != nil and $bracket[0] == "Option":
+      var foundNonIdent = false #Used to remove redundant constant checks
+      for varNode in def:
+        foundNonIdent = varNode.kind != nnkIdent #First N idents are the declared variables in a `a,b,c: T`
+        if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
+        stmtList.insert 0, quote do:
+          if `varNode`.isSome: return
+  procDef
