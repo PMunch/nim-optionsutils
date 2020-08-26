@@ -500,12 +500,13 @@ template optCmp*(self, cmp, value: untyped): untyped =
 
 import sequtils
 
-macro withSome*(body: untyped): untyped =
+macro withSome*(procDef: untyped): untyped =
   ##Early exit if the any of option parameters passed are none.
   ##Also shadows the parameters to their internal type.
+  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
   let 
-    identDefs = body[3] #All parameter names
-    stmtList = body.findChild(it.kind == nnkStmtList) #body
+    identDefs = procDef[3] #All parameter names
+    stmtList = procDef.body #body
   for def in identDefs:
     let bracket = def.findChild(it.kind == nnkBracketExpr)
     if bracket != nil and $bracket[0] == "Option":
@@ -515,13 +516,14 @@ macro withSome*(body: untyped): untyped =
         stmtList.insert 0, quote do:
           if `varNode`.isNone: return
           let `varNode` = `varNode`.get
-  body
+  procDef
 
-macro withNone*(body: untyped): untyped =
+macro withNone*(procDef: untyped): untyped =
   ##Early exit if the any of option parameters passed are some.
+  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
   let 
-    identDefs = body[3] #All parameter names
-    stmtList = body.findChild(it.kind == nnkStmtList) #body
+      identDefs = procDef[3] #All parameter names
+      stmtList = procDef.body
   for def in identDefs:
     let bracket = def.findChild(it.kind == nnkBracketExpr)
     #Get all defined variables here so we can check them later
@@ -530,4 +532,4 @@ macro withNone*(body: untyped): untyped =
       for varNode in idents:
         stmtList.insert 0, quote do:
           if `varNode`.isSome: return
-  body
+  procDef
