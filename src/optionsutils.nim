@@ -50,6 +50,8 @@
 ## refactoring and move something from the some branch into the none branch.
 ## And as long as care is taken to stay away from ``options.get`` and
 ## ``options.unsafeGet`` this will ensure you can't have exception cases.
+## ``withSome`` can also be used as a pragma to check that all ``Option[T]``
+## arguments to a procedure are some and unpack them automatically.
 ##
 ## The second option is the existential operator, or optional chaining
 ## operator. This operator can be put where regular dot-chaining would apply
@@ -498,17 +500,32 @@ template optCmp*(self, cmp, value: untyped): untyped =
         return a
   )()
 
-import sequtils
-
 macro withSome*(procDef: untyped): untyped =
-  ##Early exit if the any of option parameters passed are none.
-  ##Also shadows the parameters to their internal type.
-  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
+  ## Pragma that can be applied to procedures which takes ``Option[T]``
+  ## arguments.  It will verify that all the options are some and shadow the
+  ## argument names with the internal type of the ``Option[T]`` (as long as the
+  ## argument isn't declared as a ``var``). If one of the arguments isn't
+  ## ``some`` then the procedure will return before it's body, and the return
+  ## value will be left as its default (so an ``Option[T]`` return type would be
+  ## a ``none``).
+  runnableExamples:
+    import options
+    proc addNums(a, b: Option[int], c: var Option[int]): Option[int] {.withSome.} =
+      assert typeof(a) is int # `a` and `b` are shadowed with the options internal type
+      assert typeof(b) is int
+      assert typeof(c) is Option[int] # `c` is not shadowed as it is a `var`
+      result = some(a + b + c.get())
+      c = none(int)
+      # Since the default of an `Option[int]` is a `none`, if the check of `a`
+      # and `b` fails this returns `none`
+  doAssert procDef.kind in {nnkProcDef, nnkFuncDef}, "This macro only works on procedure and function definitions."
   let
     identDefs = procDef[3] #All parameter names
     stmtList = procDef.body #body
   for def in identDefs:
-    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    let
+      opt = def.findChild(it.kind in {nnkBracketExpr, nnkVarTy})
+      bracket = if opt == nil or opt.kind == nnkBracketExpr: opt else: opt[0]
     if bracket != nil and $bracket[0] == "Option":
       var foundNonIdent = false #Used to remove redundant constant checks
       for varNode in def:
@@ -516,17 +533,24 @@ macro withSome*(procDef: untyped): untyped =
         if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
         stmtList.insert 0, quote do:
           if `varNode`.isNone: return
-          let `varNode` = `varNode`.get
+        if opt.kind != nnkVarTy:
+          stmtList.insert 1, quote do:
+            let `varNode` = `varNode`.unsafeGet
   procDef
 
 macro withNone*(procDef: untyped): untyped =
-  ##Early exit if the any of option parameters passed are some.
-  doAssert procDef.kind == nnkProcDef, "This macro only works on procedure definitions."
+  ## Same as the ``withSome`` pragma but verifies that all options are ``none``.
+  ## All option arguments are shadowed by an error template so they can't be
+  ## used within the procedure body, this does not apply to arguments declared
+  ## as ``var``.
+  doAssert procDef.kind in {nnkProcDef, nnkFuncDef}, "This macro only works on procedure and function definitions."
   let
       identDefs = procDef[3] #All parameter names
       stmtList = procDef.body
   for def in identDefs:
-    let bracket = def.findChild(it.kind == nnkBracketExpr)
+    let
+      opt = def.findChild(it.kind in {nnkBracketExpr, nnkVarTy})
+      bracket = if opt == nil or opt.kind == nnkBracketExpr: opt else: opt[0]
     #Get all defined variables here so we can check them later
     if bracket != nil and $bracket[0] == "Option":
       var foundNonIdent = false #Used to remove redundant constant checks
@@ -535,4 +559,7 @@ macro withNone*(procDef: untyped): untyped =
         if foundNonIdent: break #Hit non ident which means we dont need to iterate any further
         stmtList.insert 0, quote do:
           if `varNode`.isSome: return
+        if opt.kind != nnkVarTy:
+          stmtList.insert 1, quote do:
+            template `varNode`(): untyped = {.error: "Cannot use `" & astToStr(`varNode`) & "` in this `withNone` context".}
   procDef

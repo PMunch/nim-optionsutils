@@ -76,6 +76,14 @@ suite "safety":
     else:
       check true
 
+    when(compiles do:
+      if get(some("Hello")) == "Hello":
+        echo "Found a value!"
+      ):
+      check false
+    else:
+      check true
+
 suite "original options":
   type RefPerson = ref object
     name: string
