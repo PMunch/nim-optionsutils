@@ -126,7 +126,7 @@
 ##       echo "No value"
 
 import options, macros
-
+export options
 type ExistentialOption[T] = distinct Option[T]
 
 converter toBool*(option: ExistentialOption[bool]): bool =
@@ -567,6 +567,9 @@ macro withNone*(procDef: untyped): untyped =
 macro then*[T](cond: bool, val: T): untyped =
   ## When the condition is true the result is ``some(val)``.
   ## Otherwise the result is ``none(val.type)``
+  runnableExamples:
+    assert some(100) == true.then(100)
+    assert none(int) == false.then(100)
   quote do:
     if `cond`:
       some(`val`)
