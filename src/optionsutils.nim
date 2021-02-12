@@ -563,3 +563,13 @@ macro withNone*(procDef: untyped): untyped =
           stmtList.insert 1, quote do:
             template `varNode`(): untyped = {.error: "Cannot use `" & astToStr(`varNode`) & "` in this `withNone` context".}
   procDef
+
+macro then*[T](cond: bool, val: T): untyped =
+  ## When the condition is true the result is ``some(val)``.
+  ## Otherwise the result is ``none(val.type)``
+  quote do:
+    if `cond`:
+      some(`val`)
+    else:
+      none(`val`.type)
+
