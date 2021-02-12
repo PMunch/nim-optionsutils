@@ -126,6 +126,7 @@
 ##       echo "No value"
 
 import options, macros
+
 type ExistentialOption[T] = distinct Option[T]
 
 converter toBool*(option: ExistentialOption[bool]): bool =
