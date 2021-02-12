@@ -251,3 +251,10 @@ suite "optionsutils":
     withSome x:
       some y:
         check y == 100
+
+  test "then":
+    check:
+      some(100) == true.then(100)
+      none(int) == false.then(100)
+      some("Hello") == true.then("Hello")
+      none(string) == false.then("hello")
