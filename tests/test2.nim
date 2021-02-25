@@ -53,13 +53,15 @@ suite "documentation examples":
 
   test "wrapCall":
     let optParseInt = wrapCall: parseInt(x: string): int
-    mockEcho optParseInt("10") # Prints "Some(10)"
-    check echoed == "Some(10)"
-    reset echoed
+    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
+      mockEcho optParseInt("10") # Prints "some(10)"
+      check echoed == "some(10)"
+      reset echoed
 
     mockEcho optParseInt("bob") # Prints "None[int]"
-    check echoed == "None[int]"
-    reset echoed
+    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
+      check echoed == "none(int)"
+      reset echoed
 
     mockEcho either(optParseInt("bob"), 10) # Prints 10, like a default value
     check echoed == "10"
