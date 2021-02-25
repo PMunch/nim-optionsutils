@@ -41,8 +41,9 @@ suite "optionsutils":
     reset echoed
 
     mockEcho none(string)?.find('l')
-    check echoed == "None[int]"
-    reset echoed
+    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
+      check echoed == "none(int)"
+      reset echoed
 
   test "existential operator and bool conversion":
     if some("Hello")?.find('l').`==` 2:
