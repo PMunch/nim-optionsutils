@@ -3,6 +3,7 @@ import unittest
 import options, optionsutils
 
 import strutils
+import ./mtestutils
 
 proc find(haystack: string, needle: char): Option[int] =
   for i, c in haystack:
@@ -53,15 +54,19 @@ suite "documentation examples":
 
   test "wrapCall":
     let optParseInt = wrapCall: parseInt(x: string): int
-    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
-      mockEcho optParseInt("10") # Prints "some(10)"
+    mockEcho optParseInt("10") # Prints "some(10)"
+    when nimHasNewOptionsDollar:
       check echoed == "some(10)"
-      reset echoed
+    else:
+      check echoed == "Some(10)"
+    reset echoed
 
     mockEcho optParseInt("bob") # Prints "None[int]"
-    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
+    when nimHasNewOptionsDollar:
       check echoed == "none(int)"
-      reset echoed
+    else:
+      check echoed == "None[int]"
+    reset echoed
 
     mockEcho either(optParseInt("bob"), 10) # Prints 10, like a default value
     check echoed == "10"

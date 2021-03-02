@@ -3,6 +3,7 @@ import unittest
 import options, optionsutils
 import strutils
 import macros
+import ./mtestutils
 
 suite "optionsutils":
   var echoed: string
@@ -41,9 +42,11 @@ suite "optionsutils":
     reset echoed
 
     mockEcho none(string)?.find('l')
-    when (NimMajor, NimMinor, NimPatch) >= (1, 5, 1):
+    when nimHasNewOptionsDollar:
       check echoed == "none(int)"
-      reset echoed
+    else:
+      check echoed == "None[int]"
+    reset echoed
 
   test "existential operator and bool conversion":
     if some("Hello")?.find('l').`==` 2:
