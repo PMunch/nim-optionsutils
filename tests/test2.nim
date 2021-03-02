@@ -61,7 +61,7 @@ suite "documentation examples":
       check echoed == "Some(10)"
     reset echoed
 
-    mockEcho optParseInt("bob") # Prints "None[int]"
+    mockEcho optParseInt("bob") # Prints "none(int)"
     when nimHasNewOptionsDollar:
       check echoed == "none(int)"
     else:
