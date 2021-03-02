@@ -2,8 +2,7 @@ import unittest
 
 import safeoptions
 import strutils
-
-const nimHasNewOptionsDollar = (NimMajor, NimMinor, NimPatch) >= (1, 5, 1)
+import ./mtestutils
 
 suite "safety":
   test "using safe access pattern":
@@ -134,6 +133,9 @@ suite "original options":
     when nimHasNewOptionsDollar:
       check($(some("Correct")) == "some(\"Correct\")")
       check($(stringNone) == "none(string)")
+    else:
+      check($(some("Correct")) == "Some(\"Correct\")")
+      check($(stringNone) == "None[string]")
 
   test "map with a void result":
     var procRan = 0
@@ -198,6 +200,8 @@ suite "original options":
     let nobody = none(Named)
     when nimHasNewOptionsDollar:
       check($nobody == "none(Named)")
+    else:
+      check($nobody == "None[Named]")
 
   test "$ on type with name()":
     type Person = object
@@ -206,6 +210,8 @@ suite "original options":
     let noperson = none(Person)
     when nimHasNewOptionsDollar:
       check($noperson == "none(Person)")
+    else:
+      check($noperson == "None[Person]")
 
   test "Ref type with overloaded `==`":
     let p = some(RefPerson.new())
