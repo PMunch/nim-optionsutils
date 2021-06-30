@@ -186,9 +186,6 @@ suite "original options":
     intref.new
     check(option(intref).isSome)
 
-    let tmp = option(intref)
-    check(sizeof(tmp) == sizeof(ptr int))
-
   test "none[T]":
     check(none[int]().isNone)
     check(none(int) == none[int]())
